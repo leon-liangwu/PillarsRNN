@@ -7,7 +7,8 @@ class VoxelGenerator:
                  voxel_size,
                  point_cloud_range,
                  max_num_points,
-                 max_voxels=20000):
+                 max_voxels=20000,
+                 rnn_num=0):
         point_cloud_range = np.array(point_cloud_range, dtype=np.float32)
         # [0, -40, -3, 70.4, 40, 1]
         voxel_size = np.array(voxel_size, dtype=np.float32)
@@ -20,11 +21,12 @@ class VoxelGenerator:
         self._max_num_points = max_num_points
         self._max_voxels = max_voxels
         self._grid_size = grid_size
+        self.rnn_num = rnn_num
 
     def generate(self, points, max_voxels):
         return points_to_voxel(
             points, self._voxel_size, self._point_cloud_range,
-            self._max_num_points, True, max_voxels)
+            self._max_num_points, True, max_voxels, self.rnn_num)
 
     @property
     def voxel_size(self):

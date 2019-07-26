@@ -13,7 +13,8 @@ def _points_to_voxel_reverse_kernel(points,
                                     voxels,
                                     coors,
                                     max_points=35,
-                                    max_voxels=20000):
+                                    max_voxels=20000,
+                                    rnn_num=0):
     # put all computations to one loop.
     # we shouldn't create large array in main jit code, otherwise
     # reduce performance
@@ -27,6 +28,8 @@ def _points_to_voxel_reverse_kernel(points,
     grid_size = np.round(grid_size, 0, grid_size).astype(np.int32)
     coor = np.zeros(shape=(3, ), dtype=np.int32)
     voxel_num = 0
+    if rnn_num > 0:
+        rnn_step = (coors_range[5] - coors_range[2]) / rnn_num
     failed = False
     for i in range(N):
         failed = False
@@ -46,10 +49,17 @@ def _points_to_voxel_reverse_kernel(points,
             voxel_num += 1
             coor_to_voxelidx[coor[0], coor[1], coor[2]] = voxelidx
             coors[voxelidx] = coor
-        num = num_points_per_voxel[voxelidx]
-        if num < max_points:
-            voxels[voxelidx, num] = points[i]
-            num_points_per_voxel[voxelidx] += 1
+        if rnn_num == 0:
+            num = num_points_per_voxel[voxelidx]
+            if num < max_points:
+                voxels[voxelidx, num] = points[i]
+                num_points_per_voxel[voxelidx] += 1
+        else:
+            rnn_ind = int(points[i, 2] / rnn_step)
+            num = num_points_per_voxel[voxelidx, rnn_ind]
+            if num < max_points:
+                voxels[voxelidx, rnn_ind, num] = points[i]
+                num_points_per_voxel[voxelidx, rnn_ind] += 1
     return voxel_num
 
 @numba.jit(nopython=True)
@@ -61,7 +71,8 @@ def _points_to_voxel_kernel(points,
                             voxels,
                             coors,
                             max_points=35,
-                            max_voxels=20000):
+                            max_voxels=20000,
+                            rnn_num=0):
     # need mutex if write in cuda, but numba.cuda don't support mutex.
     # in addition, pytorch don't support cuda in dataloader(tensorflow support this).
     # put all computations to one loop.
@@ -78,6 +89,8 @@ def _points_to_voxel_kernel(points,
     upper_bound = coors_range[3:]
     coor = np.zeros(shape=(3, ), dtype=np.int32)
     voxel_num = 0
+    if rnn_num > 0:
+        rnn_step = (coors_range[5] - coors_range[2]) / rnn_num
     failed = False
     for i in range(N):
         failed = False
@@ -97,10 +110,17 @@ def _points_to_voxel_kernel(points,
             voxel_num += 1
             coor_to_voxelidx[coor[0], coor[1], coor[2]] = voxelidx
             coors[voxelidx] = coor
-        num = num_points_per_voxel[voxelidx]
-        if num < max_points:
-            voxels[voxelidx, num] = points[i]
-            num_points_per_voxel[voxelidx] += 1
+        if rnn_num == 0:
+            num = num_points_per_voxel[voxelidx]
+            if num < max_points:
+                voxels[voxelidx, num] = points[i]
+                num_points_per_voxel[voxelidx] += 1
+        else:
+            rnn_ind = int(points[i, 2] / rnn_step)
+            num = num_points_per_voxel[voxelidx, rnn_ind]
+            if num < max_points:
+                voxels[voxelidx, rnn_ind, num] = points[i]
+                num_points_per_voxel[voxelidx, rnn_ind] += 1
     return voxel_num
 
 
@@ -109,7 +129,8 @@ def points_to_voxel(points,
                      coors_range,
                      max_points=35,
                      reverse_index=True,
-                     max_voxels=20000):
+                     max_voxels=20000,
+                     rnn_num=0):
     """convert kitti points(N, >=3) to voxels. This version calculate
     everything in one loop. now it takes only 4.2ms(complete point cloud) 
     with jit and 3.2ghz cpu.(don't calculate other features)

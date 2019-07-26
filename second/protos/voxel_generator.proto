@@ -10,4 +10,5 @@ message VoxelGenerator{
     bool submanifold_group = 4;
     repeated uint32 submanifold_size = 5;
     uint32 submanifold_max_points = 6;
+    uint32 rnn_num = 7;
 }
