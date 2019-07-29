@@ -18,7 +18,8 @@ class PFNLayer(nn.Module):
                  in_channels,
                  out_channels,
                  use_norm=True,
-                 last_layer=False):
+                 last_layer=False,
+                 with_rnn=False):
         """
         Pillar Feature Net Layer.
         The Pillar Feature Net could be composed of a series of these layers, but the PointPillars paper results only
@@ -45,8 +46,13 @@ class PFNLayer(nn.Module):
 
         self.linear = Linear(in_channels, self.units)
         self.norm = BatchNorm1d(self.units)
+        self._with_rnn = with_rnn
 
     def forward(self, inputs):
+
+        if self._with_rnn:
+            (k, r, p, n) = inputs.shape
+            inputs = inputs.view(k*r, p, n)
 
         x = self.linear(inputs)
         x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
@@ -54,11 +60,14 @@ class PFNLayer(nn.Module):
 
         x_max = torch.max(x, dim=1, keepdim=True)[0]
 
+        if self._with_rnn:
+            x_max = x_max.view(k, r, 1, x_max.shape[-1])
+
         if self.last_vfe:
             return x_max
         else:
-            x_repeat = x_max.repeat(1, inputs.shape[1], 1)
-            x_concatenated = torch.cat([x, x_repeat], dim=2)
+            x_repeat = x_max.repeat(-2, inputs.shape[-2], 1)
+            x_concatenated = torch.cat([x, x_repeat], dim=-1)
             return x_concatenated
 
 
@@ -69,7 +78,8 @@ class PillarFeatureNet(nn.Module):
                  num_filters=(64,),
                  with_distance=False,
                  voxel_size=(0.2, 0.2, 4),
-                 pc_range=(0, -40, -3, 70.4, 40, 1)):
+                 pc_range=(0, -40, -3, 70.4, 40, 1),
+                 with_rnn=False):
         """
         Pillar Feature Net.
         The network prepares the pillar features and performs forward pass through PFNLayers. This net performs a
@@ -100,7 +110,7 @@ class PillarFeatureNet(nn.Module):
                 last_layer = False
             else:
                 last_layer = True
-            pfn_layers.append(PFNLayer(in_filters, out_filters, use_norm, last_layer=last_layer))
+            pfn_layers.append(PFNLayer(in_filters, out_filters, use_norm, last_layer=last_layer, with_rnn=with_rnn))
         self.pfn_layers = nn.ModuleList(pfn_layers)
 
         # Need pillar (voxel) size and x/y offset in order to calculate pillar offset
@@ -109,34 +119,76 @@ class PillarFeatureNet(nn.Module):
         self.x_offset = self.vx / 2 + pc_range[0]
         self.y_offset = self.vy / 2 + pc_range[1]
 
+        self._with_rnn = with_rnn
+
+        if with_rnn:
+            self.rnn = nn.RNN(out_filters, out_filters, 2, batch_first=True)
+
     def forward(self, features, num_voxels, coors):
+        # if self._with_rnn:
+        #     features = features.squeeze(1)
+        #
+        # print(coors.shape)
+        # print(coors[:10])
 
         # Find distance of x, y, and z from cluster center
-        points_mean = features[:, :, :3].sum(dim=1, keepdim=True) / num_voxels.type_as(features).view(-1, 1, 1)
-        f_cluster = features[:, :, :3] - points_mean
+        points_num = num_voxels.type_as(features).view(-1, 1, 1)
+
+        coors_x = coors[:, 3].float().unsqueeze(1) * self.vx + self.x_offset
+        coors_y = coors[:, 2].float().unsqueeze(1) * self.vy + self.y_offset
+
+        # feature mask
+        voxel_count = features.shape[-2]  # 100
+        mask = get_paddings_indicator(num_voxels, voxel_count, axis=0)
+        mask = torch.unsqueeze(mask, -1).type_as(features)
+
+        if self._with_rnn:
+            rnn_num = features.shape[1]
+            points_num = torch.cat([points_num] * rnn_num, dim=1)
+            points_num = points_num.view(-1, rnn_num, 1, 1)
+
+            coors_x = torch.cat([coors_x] * rnn_num, dim=1)
+            coors_x = coors_x.view(-1, rnn_num, 1)
+
+            coors_y = torch.cat([coors_y] * rnn_num, dim=1)
+            coors_y = coors_y.view(-1, rnn_num, 1)
+
+            (k, n, _) = mask.shape
+            mask = torch.cat([mask] * rnn_num, dim=1)
+            mask = mask.view(-1, rnn_num, n, 1)
+
+        points_mean = features[..., :3].sum(dim=-2, keepdim=True) / points_num
+        f_cluster = features[..., :3] - points_mean
 
         # Find distance of x, y, and z from pillar center
-        f_center = torch.zeros_like(features[:, :, :2])
-        f_center[:, :, 0] = features[:, :, 0] - (coors[:, 3].float().unsqueeze(1) * self.vx + self.x_offset)
-        f_center[:, :, 1] = features[:, :, 1] - (coors[:, 2].float().unsqueeze(1) * self.vy + self.y_offset)
+        f_center = torch.zeros_like(features[..., :2])
+        f_center[..., 0] = features[..., 0] - coors_x
+        f_center[..., 1] = features[..., 1] - coors_y
 
         # Combine together feature decorations
         features_ls = [features, f_cluster, f_center]
         if self._with_distance:
-            points_dist = torch.norm(features[:, :, :3], 2, 2, keepdim=True)
+            points_dist = torch.norm(features[..., :3], 2, 2, keepdim=True)
             features_ls.append(points_dist)
         features = torch.cat(features_ls, dim=-1)
 
         # The feature decorations were calculated without regard to whether pillar was empty. Need to ensure that
         # empty pillars remain set to zeros.
-        voxel_count = features.shape[1]
-        mask = get_paddings_indicator(num_voxels, voxel_count, axis=0)
-        mask = torch.unsqueeze(mask, -1).type_as(features)
         features *= mask
+
+        if self._with_rnn:
+            features = features.squeeze(1)
 
         # Forward pass through PFNLayers
         for pfn in self.pfn_layers:
             features = pfn(features)
+
+        if self._with_rnn:
+            (k, r, _, n) = features.shape
+            x = features.view(-1, r, n)
+            self.rnn.flatten_parameters()
+            x, hn = self.rnn(x)
+            features = x.view(k, 1, n)
 
         return features.squeeze()
 

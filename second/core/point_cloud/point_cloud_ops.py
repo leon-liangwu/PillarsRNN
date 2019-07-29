@@ -294,6 +294,10 @@ def points_to_voxel(points,
     num_points_per_voxel = num_points_per_voxel[:voxel_num]
     # voxels[:, :, -3:] = voxels[:, :, :3] - \
     #     voxels[:, :, :3].sum(axis=1, keepdims=True)/num_points_per_voxel.reshape(-1, 1, 1)
+
+    if rnn_num > 0:
+        num_points_per_voxel = num_points_per_voxel.sum(-1)
+
     return voxels, coors, num_points_per_voxel
 
 
