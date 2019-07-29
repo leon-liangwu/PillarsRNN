@@ -188,6 +188,7 @@ class PillarFeatureNet(nn.Module):
             x = features.view(-1, r, n)
             self.rnn.flatten_parameters()
             x, hn = self.rnn(x)
+            x = x[:, -1, :]
             features = x.view(k, 1, n)
 
         return features.squeeze()
