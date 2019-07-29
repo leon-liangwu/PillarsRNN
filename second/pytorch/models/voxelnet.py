@@ -530,7 +530,8 @@ class VoxelNet(nn.Module):
                  cls_loss_ftor=None,
                  voxel_size=(0.2, 0.2, 4),
                  pc_range=(0, -40, -3, 70.4, 40, 1),
-                 name='voxelnet'):
+                 name='voxelnet',
+                 with_rnn=False):
         super().__init__()
         self.name = name
         self._num_class = num_class
@@ -577,7 +578,8 @@ class VoxelNet(nn.Module):
                 num_filters=vfe_num_filters,
                 with_distance=with_distance,
                 voxel_size=voxel_size,
-                pc_range=pc_range
+                pc_range=pc_range,
+                with_rnn=with_rnn
             )
         else:
             self.voxel_feature_extractor = vfe_class(

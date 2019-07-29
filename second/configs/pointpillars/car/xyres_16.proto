@@ -4,6 +4,7 @@ model: {
       point_cloud_range : [0, -39.68, -3, 69.12, 39.68, 1]
       voxel_size : [0.16, 0.16, 4]
       max_number_of_points_per_voxel : 100
+      rnn_num : 0
     }
     num_class: 1
     voxel_feature_extractor: {
@@ -96,10 +97,10 @@ model: {
 
 
 train_input_reader: {
-  record_file_path: "/data/sets/kitti_second/kitti_train.tfrecord"
+  record_file_path: "/data/KITTI/object_pointpillars/kitti_train.tfrecord"
   class_names: ["Car"]
   max_num_epochs : 160
-  batch_size: 2
+  batch_size: 1
   prefetch_size : 25
   max_number_of_voxels: 12000
   shuffle_points: true
@@ -114,7 +115,7 @@ train_input_reader: {
   groundtruth_points_drop_percentage: 0.0
   groundtruth_drop_max_keep_points: 15
   database_sampler {
-    database_info_path: "/data/sets/kitti_second/kitti_dbinfos_train.pkl"
+    database_info_path: "/data/KITTI/object_pointpillars/kitti_dbinfos_train.pkl"
     sample_groups {
       name_to_max_num {
         key: "Car"
@@ -140,8 +141,8 @@ train_input_reader: {
 
   remove_unknown_examples: false
   remove_environment: false
-  kitti_info_path: "/data/sets/kitti_second/kitti_infos_train.pkl"
-  kitti_root_path: "/data/sets/kitti_second"
+  kitti_info_path: "/data/KITTI/object_pointpillars/kitti_infos_train.pkl"
+  kitti_root_path: "/data/KITTI/object_pointpillars"
 }
 
 train_config: {
@@ -172,9 +173,9 @@ train_config: {
 }
 
 eval_input_reader: {
-  record_file_path: "/data/sets/kitti_second/kitti_val.tfrecord"
+  record_file_path: "/data/KITTI/object_pointpillars/kitti_val.tfrecord"
   class_names: ["Car"]
-  batch_size: 2
+  batch_size: 1
   max_num_epochs : 160
   prefetch_size : 25
   max_number_of_voxels: 12000
@@ -182,6 +183,6 @@ eval_input_reader: {
   num_workers: 3
   anchor_area_threshold: 1
   remove_environment: false
-  kitti_info_path: "/data/sets/kitti_second/kitti_infos_val.pkl"
-  kitti_root_path: "/data/sets/kitti_second"
+  kitti_info_path: "/data/KITTI/object_pointpillars/kitti_infos_val.pkl"
+  kitti_root_path: "/data/KITTI/object_pointpillars"
 }
