@@ -106,19 +106,19 @@ Note: PointPillar's protos use ```KITTI_DATASET_ROOT=/data/sets/kitti_second/```
 #### 2. Create kitti infos:
 
 ```bash
-python create_data.py create_kitti_info_file --data_path=KITTI_DATASET_ROOT
+python create_data.py create_kitti_info_file --data_path=$KITTI_DATASET_ROOT
 ```
 
 #### 3. Create reduced point cloud:
 
 ```bash
-python create_data.py create_reduced_point_cloud --data_path=KITTI_DATASET_ROOT
+python create_data.py create_reduced_point_cloud --data_path=$KITTI_DATASET_ROOT
 ```
 
 #### 4. Create groundtruth-database infos:
 
 ```bash
-python create_data.py create_groundtruth_database --data_path=KITTI_DATASET_ROOT
+python create_data.py create_groundtruth_database --data_path=$KITTI_DATASET_ROOT
 ```
 
 #### 5. Modify config file
