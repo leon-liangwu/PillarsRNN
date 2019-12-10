@@ -3,8 +3,8 @@ model: {
     voxel_generator {
       point_cloud_range : [0, -39.68, -3, 69.12, 39.68, 1]
       voxel_size : [0.16, 0.16, 4]
-      max_number_of_points_per_voxel : 100
-      rnn_num : 0
+      max_number_of_points_per_voxel : 64
+      rnn_num : 3
     }
     num_class: 1
     voxel_feature_extractor: {

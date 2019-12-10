@@ -657,4 +657,5 @@ def evaluate(config_path,
 
 
 if __name__ == '__main__':
+    torch.backends.cudnn.enabled = False  # big matrix can x.contiguous() problem rnn= 5
     fire.Fire()

@@ -54,6 +54,7 @@ class PFNLayer(nn.Module):
             (k, r, p, n) = inputs.shape
             inputs = inputs.view(k*r, p, n)
 
+        
         x = self.linear(inputs)
         x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2, 1).contiguous()
         x = F.relu(x)
