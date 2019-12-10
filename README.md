@@ -163,7 +163,7 @@ python ./pytorch/train.py train --config_path=./configs/pointpillars/car/xyres_1
 
 ```bash
 cd ~/second.pytorch/second/
-python pytorch/train.py evaluate --config_path= configs/pointpillars/car/xyres_16.proto --model_dir=/path/to/model_dir
+python pytorch/train.py evaluate --config_path=./configs/pointpillars/car/xyres_16.proto --model_dir=/path/to/model_dir
 ```
 
 * Detection result will saved in model_dir/eval_results/step_xxx.
