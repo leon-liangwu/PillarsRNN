@@ -123,7 +123,7 @@ class PillarFeatureNet(nn.Module):
         self._with_rnn = with_rnn
 
         if with_rnn:
-            self.rnn = nn.RNN(out_filters, 265, 2, batch_first=True)
+            self.rnn = nn.RNN(out_filters, 256, 2, batch_first=True)
             self.rnn_fc = nn.Linear(256, out_filters, bias=True)
 
     def forward(self, features, num_voxels, coors):
@@ -193,6 +193,7 @@ class PillarFeatureNet(nn.Module):
             x = x[:, -1, :]
             x = self.rnn_fc(x)
             features = x.view(k, 1, n)
+
 
         return features.squeeze()
 
